@@ -1,0 +1,28 @@
+[project]
+name = "multi-agent-coder"
+version = "0.1.0"
+description = "Autonomous Multi-Agent Researcher and Coder with Self-Healing Loop"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "pydantic>=2.7.0",
+    "pydantic-settings>=2.2.0",
+    "openai>=1.30.0",
+    "rich>=13.7.0",
+    "pytest>=8.2.0",
+    "python-dotenv>=1.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "ruff>=0.4.0",
+    "pytest-cov>=5.0.0",
+]
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
