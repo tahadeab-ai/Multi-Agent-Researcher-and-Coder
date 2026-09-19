@@ -52,7 +52,7 @@ flowchart TD
 ## ⚡ Key Engineering Features
 
 - **Framework-Agnostic & Lightweight:** Built cleanly on Pydantic v2 and the OpenAI-compatible standard. No bloated or brittle dependencies.
-- **Provider Flexibility:** Works out-of-the-box with **OpenAI** (`gpt-4o`, `gpt-4o-mini`), **Anthropic**, or **100% local, free, offline models** via **Ollama** (`llama3`, `qwen2.5-coder`).
+- **Provider Flexibility:** Works out-of-the-box with **OpenAI** (`gpt-5.5`, `gpt-5.6`), **Anthropic**, or **100% local, free, offline models** via **Ollama** (`llama3`, `qwen2.5-coder`).
 - **Sandboxed File Operations:** Prevents path traversal vulnerabilities and confines agent writes strictly to the designated workspace.
 - **Automated Self-Correction:** Eliminates manual debugging for syntax errors, missing imports, and logic bugs.
 
