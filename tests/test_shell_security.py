@@ -90,6 +90,14 @@ class TestEnvScrubbing:
         assert env["HOME"] == str(sandbox)
         assert env["USERPROFILE"] == str(sandbox)
 
+    def test_sandbox_env_redirects_temp(self, sandbox):
+        """TEMP and TMP must point to sandbox/.tmp directory."""
+        env = _make_sandbox_env(sandbox)
+        expected_tmp = str(sandbox / ".tmp")
+        assert env["TEMP"] == expected_tmp
+        assert env["TMP"] == expected_tmp
+        assert (sandbox / ".tmp").is_dir()
+
     def test_api_key_not_leaked_via_execute_python(self, sandbox, monkeypatch):
         """Generated code executed via execute_python must not see API keys."""
         monkeypatch.setenv("OPENAI_API_KEY", "sk-test-secret-key")

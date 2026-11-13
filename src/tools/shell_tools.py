@@ -10,6 +10,7 @@ import contextlib
 import json
 import os
 import platform
+import signal
 import subprocess
 import sys
 from pathlib import Path
@@ -41,6 +42,7 @@ def _make_sandbox_env(workspace: Path) -> dict[str, str]:
 
     Only variables in _ENV_ALLOWLIST are forwarded from the parent process.
     HOME/USERPROFILE are overridden to point at the workspace directory.
+    TEMP/TMP are redirected to an isolated workspace/.tmp directory.
     """
     env: dict[str, str] = {}
     for key in _ENV_ALLOWLIST:
@@ -50,6 +52,12 @@ def _make_sandbox_env(workspace: Path) -> dict[str, str]:
     # Override HOME to workspace so generated code can't find dotfiles
     env["HOME"] = str(workspace)
     env["USERPROFILE"] = str(workspace)
+
+    # Redirect TEMP/TMP to workspace/.tmp to avoid host temporary directory leakage
+    sandbox_tmp = workspace / ".tmp"
+    sandbox_tmp.mkdir(parents=True, exist_ok=True)
+    env["TEMP"] = str(sandbox_tmp)
+    env["TMP"] = str(sandbox_tmp)
     return env
 
 
@@ -57,12 +65,15 @@ def _terminate_process_tree(pid: int) -> None:
     """Terminate a process and all its descendants using a hybrid kill sequence.
 
     Steps:
-    1. Suspend parent process to stop fork bombs / child spawning immediately.
-    2. Collect all descendant processes recursively.
-    3. Kill descendant processes.
-    4. Kill parent process.
-    5. Wait on all processes to exit to avoid orphan sleepers or zombies.
+    1. On POSIX: try process-group kill os.killpg with SIGKILL first.
+    2. Fallback / Windows: suspend parent to halt spawning, collect descendants
+       recursively, kill children, kill parent, and wait via psutil.
     """
+    if platform.system() != "Windows" and hasattr(os, "killpg") and hasattr(os, "getpgid"):
+        sig = getattr(signal, "SIGKILL", getattr(signal, "SIGTERM", 9))
+        with contextlib.suppress(ProcessLookupError, PermissionError, OSError):
+            os.killpg(os.getpgid(pid), sig)
+
     try:
         parent = psutil.Process(pid)
     except psutil.NoSuchProcess:

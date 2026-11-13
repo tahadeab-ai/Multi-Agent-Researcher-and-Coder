@@ -17,6 +17,9 @@ def _resolve_safe_path(filepath: str) -> Path:
     - Prefix collision (sandbox vs sandbox_evil)
     """
     workspace = settings.get_resolved_workspace()
+    ws_str = str(workspace)
+    if ws_str.startswith("\\\\?\\"):
+        workspace = Path(ws_str[4:])
 
     # Reject absolute paths immediately (before joining)
     candidate = Path(filepath)
@@ -28,6 +31,9 @@ def _resolve_safe_path(filepath: str) -> Path:
 
     # Resolve after joining (follows symlinks)
     resolved = (workspace / filepath).resolve()
+    res_str = str(resolved)
+    if res_str.startswith("\\\\?\\"):
+        resolved = Path(res_str[4:])
 
     # Use is_relative_to for correct containment check (no prefix collisions)
     if not resolved.is_relative_to(workspace):

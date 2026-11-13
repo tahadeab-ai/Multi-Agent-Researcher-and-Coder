@@ -1,14 +1,16 @@
 """Role-scoped tool factories enforcing write policies at the tool layer.
 
-Security hardening (Phase 0, F4):
+Security hardening (Phase 0, F4 & F6):
 - Coder may write only outside tests/ (cannot edit/delete tests to force PASS)
 - Tester may write only under tests/ (cannot tamper with implementation)
-- Policies are enforced IN THE TOOL LAYER, not via prompt instructions
+- Policies are enforced IN THE TOOL LAYER against resolved, canonical paths
+- Case-folding and alias normalization (NTFS bypass mitigation) applied
 """
 
 import json
+import os
 from collections.abc import Callable
-from pathlib import PurePosixPath
+from pathlib import Path, PurePosixPath
 
 
 class WritePolicy:
@@ -31,22 +33,27 @@ class WritePolicy:
     def is_allowed(self, filepath: str) -> bool:
         """Check if a filepath is allowed under this policy.
 
-        Uses PurePosixPath.match for cross-platform glob matching.
+        Applies os.path.normcase to both paths and patterns to correctly handle
+        case-folding and aliases on case-insensitive filesystems (e.g. Windows NTFS)
+        while preserving POSIX semantics on Linux/macOS.
         """
-        # Normalize to forward slashes for consistent matching
-        normalized = filepath.replace("\\", "/")
+        # Convert to POSIX format with system-appropriate case folding
+        normalized = os.path.normcase(filepath).replace("\\", "/")
         path = PurePosixPath(normalized)
 
         # Deny patterns take precedence
         if self.deny_patterns:
             for pattern in self.deny_patterns:
-                if path.match(pattern) or self._match_prefix(normalized, pattern):
+                p_norm = os.path.normcase(pattern).replace("\\", "/")
+                if path.match(p_norm) or self._match_prefix(normalized, p_norm):
                     return False
 
         # If allow patterns exist, path must match at least one
         if self.allow_patterns:
             return any(
-                path.match(p) or self._match_prefix(normalized, p) for p in self.allow_patterns
+                path.match(os.path.normcase(p).replace("\\", "/"))
+                or self._match_prefix(normalized, os.path.normcase(p).replace("\\", "/"))
+                for p in self.allow_patterns
             )
 
         return True  # No restrictions if no patterns defined
@@ -64,20 +71,44 @@ class WritePolicy:
         return False
 
 
-# Pre-defined role policies
-CODER_POLICY = WritePolicy(deny_patterns=["tests/*", "tests/**"])
-TESTER_POLICY = WritePolicy(allow_patterns=["tests/*", "tests/**"])
+# Pre-defined role policies (includes 8.3 short name patterns)
+CODER_POLICY = WritePolicy(deny_patterns=["tests/*", "tests/**", "tests~*/*", "tests~*/**"])
+TESTER_POLICY = WritePolicy(allow_patterns=["tests/*", "tests/**", "tests~*/*", "tests~*/**"])
 
 
 def make_scoped_write_file(policy: WritePolicy) -> Callable[[str, str], str]:
     """Factory: returns a write_file function restricted by the given policy.
 
-    The returned function has the same signature as file_tools.write_file
-    but rejects writes that violate the policy with a JSON error response.
+    The returned function resolves the filepath against the sandbox first to prevent
+    alias bypasses (e.g. 'Tests/...', 'tests ./...', 'TESTS~1/...', 'x/../tests/...'),
+    verifies policy authorization against the relative resolved path, and then writes.
     """
 
     def scoped_write_file(filepath: str, content: str) -> str:
-        if not policy.is_allowed(filepath):
+        from src.tools.file_tools import _resolve_safe_path, settings, write_file
+
+        try:
+            resolved = _resolve_safe_path(filepath)
+        except PermissionError as e:
+            return json.dumps({"error": f"Access denied: {e}"})
+
+        # Strip extended-length prefix on Windows if present
+        resolved_str = str(resolved)
+        if resolved_str.startswith("\\\\?\\"):
+            resolved = Path(resolved_str[4:])
+
+        workspace = settings.get_resolved_workspace()
+        workspace_str = str(workspace)
+        if workspace_str.startswith("\\\\?\\"):
+            workspace = Path(workspace_str[4:])
+
+        try:
+            rel = resolved.relative_to(workspace).as_posix()
+        except ValueError:
+            return json.dumps({"error": f"Access denied: Path '{filepath}' escapes sandbox."})
+
+        # Check policy on both raw input and resolved relative path
+        if not policy.is_allowed(rel) or not policy.is_allowed(filepath):
             return json.dumps(
                 {
                     "error": (
@@ -86,8 +117,6 @@ def make_scoped_write_file(policy: WritePolicy) -> Callable[[str, str], str]:
                     ),
                 }
             )
-        # Delegate to the real write_file (which also applies sandbox guard)
-        from src.tools.file_tools import write_file
 
         return write_file(filepath, content)
 

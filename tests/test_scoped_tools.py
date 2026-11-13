@@ -53,6 +53,34 @@ class TestCoderPolicy:
         result = json.loads(write("tests/integration/test_api.py", "assert True"))
         assert "error" in result
 
+    def test_coder_alias_bypass_blocked(self, sandbox):
+        """F6 regression: Coder must not bypass policy via path aliases on NTFS."""
+        probe_lower = sandbox / ".__probe_case__"
+        probe_upper = sandbox / ".__PROBE_CASE__"
+        probe_lower.write_text("case_probe")
+        is_case_insensitive = probe_upper.exists()
+        probe_lower.unlink(missing_ok=True)
+
+        if not is_case_insensitive:
+            pytest.skip("Filesystem is case-sensitive (e.g. ext4 in CI)")
+
+        write = make_scoped_write_file(CODER_POLICY)
+
+        alias_vectors = [
+            "Tests/test_solution.py",
+            "TESTS/test_solution.py",
+            "tests ./test_solution.py",
+            "TESTS~1/test_solution.py",
+            "x/../tests/test_solution.py",
+            "Tests/brand_new_dir/test_foo.py",
+        ]
+        for vector in alias_vectors:
+            result = json.loads(write(vector, "def test_bypass(): assert True"))
+            assert "error" in result, f"Alias vector {vector} bypassed CODER_POLICY!"
+            assert "denied" in result["error"].lower() or "permission" in result["error"].lower(), (
+                f"Alias vector {vector} did not receive permission denial: {result}"
+            )
+
 
 class TestTesterPolicy:
     """Tester must be able to write tests but NOT implementation."""
