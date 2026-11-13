@@ -1,10 +1,13 @@
 """Interactive CLI entry point for Autonomous Multi-Agent Researcher & Coder."""
 
 import sys
+
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
+
 from src.config import settings
+from src.errors import ConfigError
 from src.graph import MultiAgentGraph
 
 console = Console()
@@ -34,17 +37,32 @@ def main():
         prompt = "Build a thread-safe LRU Cache in Python with TTL expiration and full pytest test coverage."
         console.print(f"[dim]No prompt provided. Defaulting to demonstration task: '{prompt}'[/dim]\n")
 
-    console.print(Panel(f"[bold white]{prompt}[/bold white]", title="🎯 Target Goal", border_style="green"))
+    console.print(
+        Panel(
+            f"[bold white]{prompt}[/bold white]",
+            title="🎯 Target Goal",
+            border_style="green",
+        )
+    )
 
-    graph = MultiAgentGraph()
-    state = graph.run(user_prompt=prompt)
+    try:
+        graph = MultiAgentGraph()
+        state = graph.run(user_prompt=prompt)
+    except ConfigError as e:
+        console.print(f"[bold red]Configuration Error:[/bold red] {e}")
+        sys.exit(1)
 
     # Output Summary Table
     table = Table(title="Execution Summary", border_style="cyan")
     table.add_column("Property", style="bold yellow")
     table.add_column("Value", style="white")
 
-    table.add_row("Final Status", f"[bold green]{state.status.upper()}[/bold green]" if state.status == "completed" else f"[bold red]{state.status.upper()}[/bold red]")
+    table.add_row(
+        "Final Status",
+        f"[bold green]{state.status.upper()}[/bold green]"
+        if state.status == "completed"
+        else f"[bold red]{state.status.upper()}[/bold red]",
+    )
     table.add_row("Healing Cycles Used", str(state.healing_cycle))
     if state.latest_test_result:
         table.add_row("Pytest Passed", "Yes" if state.latest_test_result.passed else "No")

@@ -1,8 +1,11 @@
 """Base Agent class implementing tool calling execution loop."""
 
 import json
-from typing import List, Dict, Any, Callable, Optional
+from collections.abc import Callable
+from typing import Any
+
 from openai import OpenAI
+
 from src.config import settings
 
 
@@ -13,8 +16,8 @@ class BaseAgent:
         self,
         name: str,
         role_prompt: str,
-        tools: Optional[List[Dict[str, Any]]] = None,
-        tool_functions: Optional[Dict[str, Callable]] = None,
+        tools: list[dict[str, Any]] | None = None,
+        tool_functions: dict[str, Callable] | None = None,
         temperature: float = 0.2,
     ):
         self.name = name
@@ -30,13 +33,15 @@ class BaseAgent:
                 api_key="ollama",
             )
         else:
+            # Validate provider configuration at init time (F5 fix)
+            settings.validate_provider()
             self.client = OpenAI(
-                api_key=settings.openai_api_key or "sk-dummy-for-testing",
+                api_key=settings.openai_api_key,
             )
 
-    def run(self, user_instruction: str, context: Optional[str] = None) -> str:
+    def run(self, user_instruction: str, context: str | None = None) -> str:
         """Runs the ReAct loop until final text response or max_steps reached."""
-        messages: List[Dict[str, Any]] = [
+        messages: list[dict[str, Any]] = [
             {"role": "system", "content": self.role_prompt},
         ]
 
@@ -50,7 +55,7 @@ class BaseAgent:
             step += 1
 
             # Prepare API arguments
-            kwargs: Dict[str, Any] = {
+            kwargs: dict[str, Any] = {
                 "model": settings.llm_model,
                 "messages": messages,
                 "temperature": self.temperature,
@@ -77,23 +82,25 @@ class BaseAgent:
                     fn_args = json.loads(fn_args_raw)
                 except Exception as json_err:
                     fn_args = {}
-                    tool_output = json.dumps({"error": f"Invalid JSON in tool args: {str(json_err)}"})
+                    tool_output = json.dumps({"error": f"Invalid JSON in tool args: {json_err!s}"})
                 else:
                     if fn_name in self.tool_functions:
                         try:
                             tool_func = self.tool_functions[fn_name]
                             tool_output = str(tool_func(**fn_args))
                         except Exception as exec_err:
-                            tool_output = json.dumps({"error": f"Tool execution failed: {str(exec_err)}"})
+                            tool_output = json.dumps({"error": f"Tool execution failed: {exec_err!s}"})
                     else:
                         tool_output = json.dumps({"error": f"Tool '{fn_name}' not recognized."})
 
                 # Append tool observation back to messages
-                messages.append({
-                    "role": "tool",
-                    "tool_call_id": tool_call.id,
-                    "name": fn_name,
-                    "content": tool_output,
-                })
+                messages.append(
+                    {
+                        "role": "tool",
+                        "tool_call_id": tool_call.id,
+                        "name": fn_name,
+                        "content": tool_output,
+                    }
+                )
 
         return "Warning: Agent reached maximum steps before generating final response."
