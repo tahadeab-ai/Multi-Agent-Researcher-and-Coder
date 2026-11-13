@@ -1,9 +1,9 @@
 """Supervisor Agent responsible for decomposing specifications into architectural plans."""
 
 import json
-from src.agents.base import BaseAgent
-from src.schema import TaskPlan, PlanStep
 
+from src.agents.base import BaseAgent
+from src.schema import PlanStep, TaskPlan
 
 SUPERVISOR_SYSTEM_PROMPT = """You are the Lead Software Architect and Supervisor Agent.
 Your job is to analyze the user's coding requirement and generate a clean, modular, step-by-step implementation plan.
@@ -45,12 +45,9 @@ class SupervisorAgent(BaseAgent):
 
         # Clean potential markdown fences
         cleaned = response_text.strip()
-        if cleaned.startswith("```json"):
-            cleaned = cleaned[7:]
-        if cleaned.startswith("```"):
-            cleaned = cleaned[3:]
-        if cleaned.endswith("```"):
-            cleaned = cleaned[:-3]
+        cleaned = cleaned.removeprefix("```json")
+        cleaned = cleaned.removeprefix("```")
+        cleaned = cleaned.removesuffix("```")
         cleaned = cleaned.strip()
 
         try:

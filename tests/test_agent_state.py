@@ -1,6 +1,6 @@
 """Unit tests for agent state and schemas."""
 
-from src.schema import AgentState, TaskPlan, PlanStep, TestResult
+from src.schema import AgentState, PlanStep, TaskPlan, TestResult
 
 
 def test_agent_state_initialization():
@@ -8,8 +8,16 @@ def test_agent_state_initialization():
         goal="Build an LRU cache",
         architecture_notes="Use OrderedDict or Doubly-Linked List",
         steps=[
-            PlanStep(step_number=1, description="Implement LRU cache class", target_file="lru.py"),
-            PlanStep(step_number=2, description="Write tests", target_file="tests/test_lru.py"),
+            PlanStep(
+                step_number=1,
+                description="Implement LRU cache class",
+                target_file="lru.py",
+            ),
+            PlanStep(
+                step_number=2,
+                description="Write tests",
+                target_file="tests/test_lru.py",
+            ),
         ],
     )
 
@@ -24,6 +32,13 @@ def test_agent_state_initialization():
     assert len(state.plan.steps) == 2
     assert state.status == "coding"
     assert state.healing_cycle == 0
+    assert state.run_dir is None
+
+    state_with_dir = AgentState(
+        user_prompt="Build an LRU Cache",
+        run_dir="/path/to/sandbox/runs/abc123",
+    )
+    assert state_with_dir.run_dir == "/path/to/sandbox/runs/abc123"
 
 
 def test_test_result_parsing():
