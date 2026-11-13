@@ -32,7 +32,8 @@ def _resolve_safe_path(filepath: str) -> Path:
     # Use is_relative_to for correct containment check (no prefix collisions)
     if not resolved.is_relative_to(workspace):
         raise PermissionError(
-            f"Access denied: Path '{filepath}' resolves to '{resolved}' which escapes sandbox '{workspace}'."
+            f"Access denied: Path '{filepath}' resolves to '{resolved}' "
+            f"which escapes sandbox '{workspace}'."
         )
     return resolved
 
@@ -104,7 +105,9 @@ FILE_TOOL_SCHEMAS: list[dict[str, Any]] = [
                 "properties": {
                     "filepath": {
                         "type": "string",
-                        "description": "Relative path to the file within the sandbox (e.g. 'src/module.py')",
+                        "description": (
+                            "Relative path to the file within the sandbox (e.g. 'src/module.py')"
+                        ),
                     }
                 },
                 "required": ["filepath"],
@@ -121,7 +124,9 @@ FILE_TOOL_SCHEMAS: list[dict[str, Any]] = [
                 "properties": {
                     "filepath": {
                         "type": "string",
-                        "description": "Relative path to the file to create/modify (e.g. 'solution.py')",
+                        "description": (
+                            "Relative path to the file to create/modify (e.g. 'solution.py')"
+                        ),
                     },
                     "content": {
                         "type": "string",
@@ -142,7 +147,9 @@ FILE_TOOL_SCHEMAS: list[dict[str, Any]] = [
                 "properties": {
                     "dirpath": {
                         "type": "string",
-                        "description": "Relative directory path (default is '.' for root of sandbox).",
+                        "description": (
+                            "Relative directory path (default is '.' for root of sandbox)."
+                        ),
                         "default": ".",
                     }
                 },

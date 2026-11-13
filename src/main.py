@@ -35,7 +35,9 @@ def main():
 
     if not prompt:
         prompt = "Build a thread-safe LRU Cache in Python with TTL expiration and full pytest test coverage."
-        console.print(f"[dim]No prompt provided. Defaulting to demonstration task: '{prompt}'[/dim]\n")
+        console.print(
+            f"[dim]No prompt provided. Defaulting to demonstration task: '{prompt}'[/dim]\n"
+        )
 
     console.print(
         Panel(
@@ -63,6 +65,8 @@ def main():
         if state.status == "completed"
         else f"[bold red]{state.status.upper()}[/bold red]",
     )
+    if state.run_dir:
+        table.add_row("Run Workspace", state.run_dir)
     table.add_row("Healing Cycles Used", str(state.healing_cycle))
     if state.latest_test_result:
         table.add_row("Pytest Passed", "Yes" if state.latest_test_result.passed else "No")

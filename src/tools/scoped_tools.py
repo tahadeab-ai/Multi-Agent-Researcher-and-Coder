@@ -45,7 +45,9 @@ class WritePolicy:
 
         # If allow patterns exist, path must match at least one
         if self.allow_patterns:
-            return any(path.match(p) or self._match_prefix(normalized, p) for p in self.allow_patterns)
+            return any(
+                path.match(p) or self._match_prefix(normalized, p) for p in self.allow_patterns
+            )
 
         return True  # No restrictions if no patterns defined
 

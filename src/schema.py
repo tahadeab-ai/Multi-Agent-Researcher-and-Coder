@@ -43,3 +43,4 @@ class AgentState(BaseModel):
     healing_cycle: int = 0
     status: Literal["planning", "coding", "testing", "healing", "completed", "failed"] = "planning"
     history: list[dict[str, Any]] = Field(default_factory=list)
+    run_dir: str | None = None

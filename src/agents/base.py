@@ -89,7 +89,9 @@ class BaseAgent:
                             tool_func = self.tool_functions[fn_name]
                             tool_output = str(tool_func(**fn_args))
                         except Exception as exec_err:
-                            tool_output = json.dumps({"error": f"Tool execution failed: {exec_err!s}"})
+                            tool_output = json.dumps(
+                                {"error": f"Tool execution failed: {exec_err!s}"}
+                            )
                     else:
                         tool_output = json.dumps({"error": f"Tool '{fn_name}' not recognized."})
 

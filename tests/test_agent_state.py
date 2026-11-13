@@ -32,6 +32,13 @@ def test_agent_state_initialization():
     assert len(state.plan.steps) == 2
     assert state.status == "coding"
     assert state.healing_cycle == 0
+    assert state.run_dir is None
+
+    state_with_dir = AgentState(
+        user_prompt="Build an LRU Cache",
+        run_dir="/path/to/sandbox/runs/abc123",
+    )
+    assert state_with_dir.run_dir == "/path/to/sandbox/runs/abc123"
 
 
 def test_test_result_parsing():

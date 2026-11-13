@@ -6,14 +6,16 @@ Security hardening (Phase 0):
       process-group kill on timeout; configurable timeouts
 """
 
+import contextlib
 import json
 import os
 import platform
-import signal
 import subprocess
 import sys
 from pathlib import Path
 from typing import Any
+
+import psutil
 
 from src.config import settings
 from src.tools.file_tools import _resolve_safe_path
@@ -49,6 +51,44 @@ def _make_sandbox_env(workspace: Path) -> dict[str, str]:
     env["HOME"] = str(workspace)
     env["USERPROFILE"] = str(workspace)
     return env
+
+
+def _terminate_process_tree(pid: int) -> None:
+    """Terminate a process and all its descendants using a hybrid kill sequence.
+
+    Steps:
+    1. Suspend parent process to stop fork bombs / child spawning immediately.
+    2. Collect all descendant processes recursively.
+    3. Kill descendant processes.
+    4. Kill parent process.
+    5. Wait on all processes to exit to avoid orphan sleepers or zombies.
+    """
+    try:
+        parent = psutil.Process(pid)
+    except psutil.NoSuchProcess:
+        return
+
+    # 1. Suspend parent immediately to halt new spawns
+    with contextlib.suppress(psutil.NoSuchProcess, psutil.AccessDenied):
+        parent.suspend()
+
+    # 2. Collect children recursively
+    try:
+        descendants = parent.children(recursive=True)
+    except (psutil.NoSuchProcess, psutil.AccessDenied):
+        descendants = []
+
+    # 3. Kill children
+    for child in descendants:
+        with contextlib.suppress(psutil.NoSuchProcess, psutil.AccessDenied):
+            child.kill()
+
+    # 4. Kill parent
+    with contextlib.suppress(psutil.NoSuchProcess, psutil.AccessDenied):
+        parent.kill()
+
+    # 5. Wait on all processes
+    psutil.wait_procs(descendants + [parent], timeout=3.0)
 
 
 def _run_sandboxed(
@@ -89,14 +129,7 @@ def _run_sandboxed(
     try:
         stdout, stderr = proc.communicate(timeout=timeout)
     except subprocess.TimeoutExpired:
-        # Kill the entire process group, not just the direct child
-        if is_windows:
-            proc.kill()
-        else:
-            try:
-                os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
-            except ProcessLookupError:
-                proc.kill()
+        _terminate_process_tree(proc.pid)
         proc.wait()
         raise
 
@@ -205,7 +238,10 @@ SHELL_TOOL_SCHEMAS: list[dict[str, Any]] = [
                 "properties": {
                     "test_path": {
                         "type": "string",
-                        "description": "Relative path to test file or directory (e.g. 'tests/test_solution.py').",
+                        "description": (
+                            "Relative path to test file or directory "
+                            "(e.g. 'tests/test_solution.py')."
+                        ),
                         "default": "tests",
                     }
                 },
@@ -217,7 +253,9 @@ SHELL_TOOL_SCHEMAS: list[dict[str, Any]] = [
         "type": "function",
         "function": {
             "name": "execute_python",
-            "description": "Executes a Python script in the sandbox and returns its terminal output.",
+            "description": (
+                "Executes a Python script in the sandbox and returns its terminal output."
+            ),
             "parameters": {
                 "type": "object",
                 "properties": {

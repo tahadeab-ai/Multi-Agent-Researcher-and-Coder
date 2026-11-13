@@ -63,3 +63,23 @@ class TestConfigSettings:
         s1 = Settings()
         s2 = Settings()
         assert s1.run_id != s2.run_id
+
+    def test_isolate_runs_default(self):
+        """isolate_runs must default to True."""
+        s = Settings()
+        assert s.isolate_runs is True
+
+    def test_per_run_workspace_and_latest_pointer(self, tmp_path):
+        """get_resolved_workspace must create runs/<uuid> and update LATEST pointer."""
+        sandbox_base = tmp_path / "sandbox"
+        s = Settings(workspace_dir=sandbox_base, isolate_runs=True)
+        resolved = s.get_resolved_workspace()
+
+        expected_run_dir = sandbox_base / "runs" / s.run_id
+        assert resolved == expected_run_dir.resolve()
+        assert resolved.exists()
+        assert resolved.is_dir()
+
+        latest_file = sandbox_base / "LATEST"
+        assert latest_file.exists()
+        assert latest_file.read_text(encoding="utf-8") == str(resolved)

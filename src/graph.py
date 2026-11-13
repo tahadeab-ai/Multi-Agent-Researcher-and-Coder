@@ -31,7 +31,12 @@ class MultiAgentGraph:
 
     def run(self, user_prompt: str) -> AgentState:
         """Executes the full multi-agent development lifecycle."""
-        state = AgentState(user_prompt=user_prompt, status="planning")
+        workspace = settings.get_resolved_workspace()
+        state = AgentState(
+            user_prompt=user_prompt,
+            status="planning",
+            run_dir=str(workspace),
+        )
 
         # ----------------------------------------------------
         # Stage 1: Planning (Supervisor Agent)
@@ -40,9 +45,7 @@ class MultiAgentGraph:
         state.plan = self.supervisor.plan_task(user_prompt=user_prompt)
         state.status = "coding"
 
-        plan_summary = (
-            f"Goal: {state.plan.goal}\nArchitecture: {state.plan.architecture_notes}\nSteps: {len(state.plan.steps)}"
-        )
+        plan_summary = f"Goal: {state.plan.goal}\nArchitecture: {state.plan.architecture_notes}\nSteps: {len(state.plan.steps)}"
         self._notify("Supervisor", f"Plan formulated:\n{plan_summary}")
 
         # ----------------------------------------------------

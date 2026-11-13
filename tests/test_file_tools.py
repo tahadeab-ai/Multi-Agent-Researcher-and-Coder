@@ -25,7 +25,7 @@ def sandbox(tmp_path, monkeypatch):
     """Create an isolated sandbox with monkeypatched settings."""
     sandbox_dir = tmp_path / "sandbox"
     sandbox_dir.mkdir()
-    mock_settings = Settings(workspace_dir=sandbox_dir)
+    mock_settings = Settings(workspace_dir=sandbox_dir, isolate_runs=False)
     monkeypatch.setattr("src.tools.file_tools.settings", mock_settings)
     return sandbox_dir
 
