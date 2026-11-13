@@ -3,11 +3,10 @@
 from src.agents.base import BaseAgent
 from src.tools.file_tools import (
     FILE_TOOL_SCHEMAS,
-    read_file,
-    write_file,
     list_directory,
+    read_file,
 )
-
+from src.tools.scoped_tools import CODER_POLICY, make_scoped_write_file
 
 CODER_SYSTEM_PROMPT = """You are the Principal Python Engineer on the team.
 Your responsibility is to write clean, idiomatic, robust, and fully-typed Python source code.
@@ -31,7 +30,7 @@ class CoderAgent(BaseAgent):
             tools=FILE_TOOL_SCHEMAS,
             tool_functions={
                 "read_file": read_file,
-                "write_file": write_file,
+                "write_file": make_scoped_write_file(CODER_POLICY),
                 "list_directory": list_directory,
             },
             temperature=0.2,
