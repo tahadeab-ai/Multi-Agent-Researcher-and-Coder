@@ -83,7 +83,7 @@ os.environ['OPENAI_API_KEY'] = 'sk-live-secret-key'
 #### Remediation Applied
 1. **Environment Allowlist**: Subprocess environments are stripped down strictly to essential system variables (`PATH`, `PYTHONHASHSEED`, `LANG`, `SYSTEMROOT`, `TEMP`, `TMP`, `COMSPEC`). All API keys and secrets are scrubbed.
 2. **Directory Isolation**: `HOME` and `USERPROFILE` are redirected to the workspace directory.
-3. **Process-Group Termination**: Subprocesses are spawned in dedicated process groups (`CREATE_NEW_PROCESS_GROUP` on Windows, `start_new_session=True` on POSIX). On timeout, the entire process hierarchy is terminated.
+3. **Process-Group Termination**: Subprocesses are spawned in dedicated process groups. On timeout, a hybrid termination sequence via `psutil` suspends the parent process, recursively terminates all descendant children and grandchildren, kills the parent, and waits for all processes to exit.
 4. **Configurable Timeouts**: Managed via `Settings.subprocess_timeout`.
 
 ---
@@ -123,21 +123,23 @@ os.environ['OPENAI_API_KEY'] = 'sk-live-secret-key'
 ============================= test session starts =============================
 platform win32 -- Python 3.13.5, pytest-9.2.0, pluggy-1.7.0
 plugins: anyio-4.16.0, cov-7.1.0
-collected 41 items
+collected 44 items
 
 tests/test_agent_state.py (2 tests)                      PASSED
-tests/test_config_validation.py (8 tests)               PASSED
+tests/test_config_validation.py (10 tests)              PASSED
 tests/test_file_tools.py (12 tests)                     PASSED
 tests/test_scoped_tools.py (11 tests)                   PASSED
-tests/test_shell_security.py (8 tests)                  PASSED
+tests/test_shell_security.py (9 tests)                  PASSED
 
-============================== 41 passed in 3.06s =============================
+============================== 44 passed in 5.44s =============================
 ```
 
 - **Ruff Linter:** 0 errors
 - **Ruff Formatter:** 0 errors
 - **Security-Critical Test Coverage:**
+  - `src/config.py`: 100%
+  - `src/errors.py`: 100%
+  - `src/schema.py`: 100%
   - `src/tools/scoped_tools.py`: 97%
-  - `src/config.py`: 88%
   - `src/tools/file_tools.py`: 85%
-  - `src/tools/shell_tools.py`: 74%
+  - `src/tools/shell_tools.py`: 85%

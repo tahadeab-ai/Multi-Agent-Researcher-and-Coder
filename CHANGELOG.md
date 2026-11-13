@@ -18,5 +18,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `src/errors.py`: Custom exception hierarchy (`ConfigError`).
 - `src/tools/scoped_tools.py`: Role-scoped write policy enforcement.
 - `docs/SECURITY_FIXES.md`: Detailed security audit report with PoCs and verification steps.
-- Comprehensive security regression test suite (41 tests, up from 5).
-- Ruff configuration in `pyproject.toml` with strict import and formatting rules.
+- `docs/reports/phase0-red-green.md`: Red-to-green empirical regression report on baseline `34edb31`.
+- Comprehensive security regression test suite (44 tests, up from 5).
+- Cross-platform process tree termination using `psutil` (Windows hybrid kill path).
+- Per-run isolated workspace directory under `sandbox/runs/<uuid>/` with `sandbox/LATEST` pointer.
+- `AgentState.run_dir` persistence and CLI execution summary table display.
+
+### Fixed
+- Restored quality gate integrity (R1): removed global lint ignores, restored line-length 100, and scoped per-file-ignores strictly to pre-existing modules with TODO annotations.
