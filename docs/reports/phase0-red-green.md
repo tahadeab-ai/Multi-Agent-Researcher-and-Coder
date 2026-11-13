@@ -24,6 +24,7 @@ All five findings (F1–F5) were verified in a dedicated temporary git worktree 
 | **F3** | Subprocess environment secret inheritance | **EXPLOITED**: Child subprocess stdout leaked `OPENAI_API_KEY` | **BLOCKED**: Environment scrubbed to allowlist; `CHILD_ENV_KEY=None` |
 | **F4** | CoderAgent unauthorized write to `tests/` | **EXPLOITED**: CoderAgent wrote into `tests/test_solution.py` with `success=True` | **BLOCKED**: `Permission denied: role policy forbids writing to 'tests/test_solution.py'` |
 | **F5** | Provider misconfiguration silent fallback | **EXPLOITED**: Initialized client with dummy key `sk-dummy-for-testing` | **BLOCKED**: Failed fast at startup with explicit `ConfigError` |
+| **F6** | Windows NTFS `WritePolicy` alias bypass (residual F4) | **EXPLOITED**: `Tests/test_solution.py` bypassed policy on NTFS returning `success=True` | **BLOCKED**: `Permission denied: role policy forbids writing to 'Tests/test_solution.py'` via canonical resolved path check & case-folding |
 
 ---
 
@@ -45,6 +46,7 @@ F2 [GREEN - BLOCKED]: run_pytest blocked escape -> error: Access denied: Access 
 F3 [GREEN - BLOCKED]: Child subprocess scrubbed secret -> CHILD_ENV_KEY=None
 F4 [GREEN - BLOCKED]: CoderAgent write to tests/ blocked -> Permission denied: role policy forbids writing to 'tests/test_solution.py'. This file is outside your allowed write scope.
 F5 [GREEN - BLOCKED]: BaseAgent failed fast with ConfigError -> LLM_PROVIDER 'anthropic' is not yet implemented. Use 'openai' or 'ollama' instead. See https://github.com/tahadeab-ai/Multi-Agent-Researcher-and-Coder/issues for updates on Anthropic support.
+F6 [GREEN - BLOCKED]: NTFS alias vectors ('Tests/...', 'TESTS/...', 'tests ./...', 'TESTS~1/...', 'x/../tests/...', 'Tests/new_dir/...') all denied -> 12 passed in test_scoped_tools.py.
 ```
 
 ---

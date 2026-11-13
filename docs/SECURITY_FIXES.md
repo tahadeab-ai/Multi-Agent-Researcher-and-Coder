@@ -3,15 +3,15 @@
 **Date:** 2026-11-13  
 **Auditor:** PHOENIX Agent  
 **Scope:** Phase 0 Security Hotfix  
-**Status:** ALL FINDINGS RESOLVED (F1–F5)
+**Status:** ALL FINDINGS RESOLVED (F1–F6)
 
 ---
 
 ## Executive Summary
 
-A comprehensive security audit of the Multi-Agent Researcher and Coder prototype revealed **3 Critical** and **2 High** severity vulnerabilities enabling arbitrary code execution, complete sandbox escape, environment secrets leakage, and reward hacking.
+A comprehensive security audit of the Multi-Agent Researcher and Coder prototype revealed **3 Critical** and **3 High** severity vulnerabilities enabling arbitrary code execution, complete sandbox escape, environment secrets leakage, and reward hacking.
 
-All 5 findings were reproduced via live Proof-of-Concepts (PoCs), addressed via defense-in-depth remediations, and validated with 41 automated regression tests with 0 failures.
+All 6 findings were reproduced via live Proof-of-Concepts (PoCs), addressed via defense-in-depth remediations, and validated with 46 automated regression tests with 0 failures.
 
 ---
 
@@ -117,21 +117,49 @@ os.environ['OPENAI_API_KEY'] = 'sk-live-secret-key'
 
 ---
 
+### Finding F6 [HIGH — Windows] — WritePolicy Alias Bypass (Residual F4)
+
+- **CWE:** CWE-178 (Improper Handling of Case Sensitivity) / CWE-41 (Improper Resolution of Path Equivalence)
+- **Location:** `src/tools/scoped_tools.py:WritePolicy` & `make_scoped_write_file`
+- **Root Cause:** Authorization was checked on raw path strings prior to canonical path resolution. On Windows NTFS, case variants (`Tests/...`, `TESTS/...`), trailing dot/space syntax (`tests ./...`), 8.3 short names (`TESTS~1/...`), and relative traversals (`x/../tests/...`) passed the raw path filter while resolving to forbidden target paths under `tests/`.
+
+#### Before Remediation (PoC Execution)
+```python
+write = make_scoped_write_file(CODER_POLICY)
+res = json.loads(write("Tests/test_solution.py", "def test_hacked(): assert True"))
+# res -> {'success': True, 'filepath': 'Tests/test_solution.py', 'bytes_written': 30}  <-- VULNERABLE
+```
+
+#### Remediation Applied
+1. Input paths are resolved and validated via `_resolve_safe_path` before policy evaluation.
+2. The canonical relative path is obtained via `resolved.relative_to(workspace).as_posix()`.
+3. Paths and policy patterns are normalized with `os.path.normcase` ensuring case-folding on case-insensitive filesystems while preserving standard POSIX behavior on Linux/macOS.
+4. Policy patterns explicitly include 8.3 short-name aliases (`tests~*/*`, `tests~*/**`).
+5. `_make_sandbox_env` redirects `TEMP` and `TMP` to `workspace/.tmp` preventing host temporary directory leakage.
+
+#### After Remediation (Verified)
+```python
+write("Tests/test_solution.py", ...)
+# -> {"error": "Permission denied: role policy forbids writing to 'Tests/test_solution.py'. ..."}
+```
+
+---
+
 ## Verification & Test Results
 
 ```
 ============================= test session starts =============================
 platform win32 -- Python 3.13.5, pytest-9.2.0, pluggy-1.7.0
 plugins: anyio-4.16.0, cov-7.1.0
-collected 44 items
+collected 46 items
 
 tests/test_agent_state.py (2 tests)                      PASSED
 tests/test_config_validation.py (10 tests)              PASSED
 tests/test_file_tools.py (12 tests)                     PASSED
-tests/test_scoped_tools.py (11 tests)                   PASSED
-tests/test_shell_security.py (9 tests)                  PASSED
+tests/test_scoped_tools.py (12 tests)                   PASSED
+tests/test_shell_security.py (10 tests)                 PASSED
 
-============================== 44 passed in 5.44s =============================
+============================== 46 passed in 6.10s =============================
 ```
 
 - **Ruff Linter:** 0 errors
@@ -140,6 +168,6 @@ tests/test_shell_security.py (9 tests)                  PASSED
   - `src/config.py`: 100%
   - `src/errors.py`: 100%
   - `src/schema.py`: 100%
-  - `src/tools/scoped_tools.py`: 97%
+  - `src/tools/scoped_tools.py`: 87%
   - `src/tools/file_tools.py`: 85%
-  - `src/tools/shell_tools.py`: 85%
+  - `src/tools/shell_tools.py`: 84%
