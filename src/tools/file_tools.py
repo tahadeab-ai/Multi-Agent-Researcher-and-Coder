@@ -1,7 +1,7 @@
 """Sandboxed file operations for autonomous agents."""
 
 import json
-from pathlib import Path
+from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import Any
 
 from src.config import settings
@@ -21,9 +21,14 @@ def _resolve_safe_path(filepath: str) -> Path:
     if ws_str.startswith("\\\\?\\"):
         workspace = Path(ws_str[4:])
 
-    # Reject absolute paths immediately (before joining)
+    # Reject absolute paths immediately (before joining) - both POSIX and Windows formats
     candidate = Path(filepath)
-    if candidate.is_absolute():
+    if (
+        candidate.is_absolute()
+        or PureWindowsPath(filepath).is_absolute()
+        or PurePosixPath(filepath).is_absolute()
+        or bool(PureWindowsPath(filepath).drive)
+    ):
         raise PermissionError(
             f"Access denied: Absolute path '{filepath}' is not allowed. "
             f"Use relative paths within sandbox '{workspace}'."
