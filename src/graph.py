@@ -1,13 +1,14 @@
 """State Machine Graph orchestrating Supervisor, Coder, and Tester agents."""
 
-from typing import Callable, Optional
+from collections.abc import Callable
+
 from rich.console import Console
-from rich.panel import Panel
+
+from src.agents.coder import CoderAgent
+from src.agents.supervisor import SupervisorAgent
+from src.agents.tester import TesterAgent
 from src.config import settings
 from src.schema import AgentState
-from src.agents.supervisor import SupervisorAgent
-from src.agents.coder import CoderAgent
-from src.agents.tester import TesterAgent
 
 console = Console()
 
@@ -15,7 +16,7 @@ console = Console()
 class MultiAgentGraph:
     """Orchestrates the multi-agent development workflow with test-driven self-healing."""
 
-    def __init__(self, on_step_callback: Optional[Callable[[str, str], None]] = None):
+    def __init__(self, on_step_callback: Callable[[str, str], None] | None = None):
         self.supervisor = SupervisorAgent()
         self.coder = CoderAgent()
         self.tester = TesterAgent()
@@ -40,9 +41,7 @@ class MultiAgentGraph:
         state.status = "coding"
 
         plan_summary = (
-            f"Goal: {state.plan.goal}\n"
-            f"Architecture: {state.plan.architecture_notes}\n"
-            f"Steps: {len(state.plan.steps)}"
+            f"Goal: {state.plan.goal}\nArchitecture: {state.plan.architecture_notes}\nSteps: {len(state.plan.steps)}"
         )
         self._notify("Supervisor", f"Plan formulated:\n{plan_summary}")
 
@@ -67,7 +66,10 @@ class MultiAgentGraph:
         # Stage 3: Verification & Self-Healing Loop (Tester Agent)
         # ----------------------------------------------------
         while state.healing_cycle <= settings.max_healing_cycles:
-            self._notify("Tester", f"Running test verification suite (Cycle {state.healing_cycle + 1})...")
+            self._notify(
+                "Tester",
+                f"Running test verification suite (Cycle {state.healing_cycle + 1})...",
+            )
 
             test_instruction = (
                 f"Verify the implementation for: '{state.plan.goal}'.\n"

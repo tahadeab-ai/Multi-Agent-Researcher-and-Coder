@@ -1,6 +1,7 @@
 """Shared Pydantic data schemas and Agent State representation."""
 
-from typing import List, Dict, Any, Optional, Literal
+from typing import Any, Literal
+
 from pydantic import BaseModel, Field
 
 
@@ -9,7 +10,7 @@ class PlanStep(BaseModel):
 
     step_number: int
     description: str
-    target_file: Optional[str] = None
+    target_file: str | None = None
     completed: bool = False
 
 
@@ -18,7 +19,7 @@ class TaskPlan(BaseModel):
 
     goal: str
     architecture_notes: str
-    steps: List[PlanStep] = Field(default_factory=list)
+    steps: list[PlanStep] = Field(default_factory=list)
 
 
 class TestResult(BaseModel):
@@ -29,16 +30,16 @@ class TestResult(BaseModel):
     summary: str
     stdout: str = ""
     stderr: str = ""
-    error_trace: Optional[str] = None
+    error_trace: str | None = None
 
 
 class AgentState(BaseModel):
     """Central state passed across nodes in the multi-agent graph."""
 
     user_prompt: str
-    plan: Optional[TaskPlan] = None
-    generated_files: List[str] = Field(default_factory=list)
-    latest_test_result: Optional[TestResult] = None
+    plan: TaskPlan | None = None
+    generated_files: list[str] = Field(default_factory=list)
+    latest_test_result: TestResult | None = None
     healing_cycle: int = 0
     status: Literal["planning", "coding", "testing", "healing", "completed", "failed"] = "planning"
-    history: List[Dict[str, Any]] = Field(default_factory=list)
+    history: list[dict[str, Any]] = Field(default_factory=list)
