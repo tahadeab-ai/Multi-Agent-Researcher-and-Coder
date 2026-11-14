@@ -159,8 +159,14 @@ All unit tests that touch the provider layer run with socket access blocked:
 @pytest.fixture(autouse=True)
 def block_sockets(monkeypatch):
     import socket
-    monkeypatch.setattr(socket, "socket", lambda *a, **k: (_ for _ in ()).throw(
-        RuntimeError("Network access forbidden in unit tests")))
+
+    monkeypatch.setattr(
+        socket,
+        "socket",
+        lambda *a, **k: (_ for _ in ()).throw(
+            RuntimeError("Network access forbidden in unit tests")
+        ),
+    )
 ```
 Integration tests (live network calls) are tagged `@pytest.mark.integration`
 and excluded by default.

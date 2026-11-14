@@ -44,7 +44,7 @@ if not resolved.is_relative_to(workspace):
 
 #### After Remediation (Verified)
 ```python
-candidate.is_relative_to(workspace) # False -> PermissionError raised
+candidate.is_relative_to(workspace)  # False -> PermissionError raised
 ```
 
 ---
@@ -75,7 +75,7 @@ target = (workspace / "/etc/passwd").resolve()
 
 #### Before Remediation (PoC Execution)
 ```python
-os.environ['OPENAI_API_KEY'] = 'sk-live-secret-key'
+os.environ["OPENAI_API_KEY"] = "sk-live-secret-key"
 # Script inside sandbox executes:
 # os.environ.get('OPENAI_API_KEY') -> 'sk-live-secret-key' (LEAKED)
 ```
