@@ -20,6 +20,9 @@ from src.logging_config import get_logger
 logger = get_logger(__name__)
 
 
+READ_ONLY_TOOLS = frozenset({"read_file", "list_directory"})
+
+
 class BaseAgent:
     """Foundational agent equipped with LLM provider, retry resilience, and tool dispatch."""
 
@@ -162,30 +165,46 @@ class BaseAgent:
             }
             messages.append(assistant_msg)
 
-            # Execute tool calls
-            for tc in response.tool_calls:
+            # Tool dispatch: parallelize independent read-only calls, serialize writes (A8)
+            all_readonly = all(tc.name in READ_ONLY_TOOLS for tc in response.tool_calls)
+
+            async def _execute_single_tool(tc: Any) -> tuple[str, str, str]:
                 fn_name = tc.name
                 try:
                     fn_args = json.loads(tc.arguments) if tc.arguments else {}
                 except json.JSONDecodeError as json_err:
-                    fn_args = {}
-                    tool_output = json.dumps({"error": f"Invalid JSON in tool args: {json_err!s}"})
-                else:
-                    try:
-                        # Synchronous tool dispatch in thread pool
-                        raw_output = await asyncio.to_thread(self._dispatch_tool, fn_name, fn_args)
-                        tool_output = truncate_tool_output(raw_output)
-                    except ToolError as tool_err:
-                        # N1: ReAct loop catches ToolError and appends tool observation
-                        tool_output = json.dumps({"error": str(tool_err)})
+                    return tc.id, fn_name, json.dumps({"error": f"Invalid JSON: {json_err!s}"})
+                try:
+                    raw_out = await asyncio.to_thread(self._dispatch_tool, fn_name, fn_args)
+                    return tc.id, fn_name, truncate_tool_output(raw_out)
+                except ToolError as tool_err:
+                    return tc.id, fn_name, json.dumps({"error": str(tool_err)})
 
-                messages.append(
-                    {
-                        "role": "tool",
-                        "tool_call_id": tc.id,
-                        "name": fn_name,
-                        "content": tool_output,
-                    }
+            if all_readonly and len(response.tool_calls) > 1:
+                # Concurrent execution of read-only tools
+                results = await asyncio.gather(
+                    *[_execute_single_tool(tc) for tc in response.tool_calls]
                 )
+                for tool_id, fn_name, tool_output in results:
+                    messages.append(
+                        {
+                            "role": "tool",
+                            "tool_call_id": tool_id,
+                            "name": fn_name,
+                            "content": tool_output,
+                        }
+                    )
+            else:
+                # Serial execution for write operations
+                for tc in response.tool_calls:
+                    tool_id, fn_name, tool_output = await _execute_single_tool(tc)
+                    messages.append(
+                        {
+                            "role": "tool",
+                            "tool_call_id": tool_id,
+                            "name": fn_name,
+                            "content": tool_output,
+                        }
+                    )
 
         raise MaxStepsExceededError(agent=self.name, steps=settings.max_agent_steps)
