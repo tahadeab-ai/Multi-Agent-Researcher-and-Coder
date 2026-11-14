@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **F3**: Isolated subprocess execution in `shell_tools.py` with an explicit environment allowlist (preventing leak of API keys such as `OPENAI_API_KEY`), dedicated process groups, and configurable timeouts.
 - **F4**: Implemented tool-layer role-based write authorization (`WritePolicy`, `make_scoped_write_file`). The Coder Agent cannot modify files in `tests/`, and the Tester Agent cannot modify files outside `tests/`.
 - **F5**: Added fail-fast configuration validation (`ConfigError`) on startup for providers, removing vulnerable dummy API keys and rejecting unsupported providers with helpful diagnostics.
-- **F6**: Fixed Windows NTFS `WritePolicy` alias bypass (residual F4) by enforcing policy against canonical resolved paths with `os.path.normcase` case-folding, 8.3 alias pattern denial, and redirecting `TEMP`/`TMP` to `workspace/.tmp`.
+- **F12**: Fixed Windows NTFS `WritePolicy` alias bypass (residual F4) by enforcing policy against canonical resolved paths with `os.path.normcase` case-folding, 8.3 alias pattern denial, and redirecting `TEMP`/`TMP` to `workspace/.tmp`. *(Note: Originally numbered F6 in v0.1.1 release tag, subsequently renamed F12 per finding numbering rules to avoid collision with baseline F6 duplicate test run).*
 
 ### Added
 - `src/errors.py`: Custom exception hierarchy (`ConfigError`).

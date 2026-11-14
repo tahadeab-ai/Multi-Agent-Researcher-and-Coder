@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main, master]
+    branches: [main, master, "phase/*"]
   pull_request:
     branches: [main, master]
 
@@ -30,7 +30,17 @@ jobs:
           uv venv
           uv pip install -e ".[dev]"
 
-      - name: Run Test Suite
+      - name: Code Quality & Lint Gate
         run: |
           source .venv/bin/activate
-          pytest -v tests/
+          ruff check .
+
+      - name: Run Test Suite with Coverage Gate (DoD 15)
+        run: |
+          source .venv/bin/activate
+          pytest -v tests/ --cov=src/llm --cov-report=term-missing --cov-fail-under=75
+
+      - name: Strict Type Gate (T1.8)
+        run: |
+          source .venv/bin/activate
+          mypy src tests

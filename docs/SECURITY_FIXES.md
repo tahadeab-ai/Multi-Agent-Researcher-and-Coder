@@ -3,7 +3,8 @@
 **Date:** 2026-11-13  
 **Auditor:** PHOENIX Agent  
 **Scope:** Phase 0 Security Hotfix  
-**Status:** ALL FINDINGS RESOLVED (F1–F6)
+**Status:** ALL FINDINGS RESOLVED (F1–F5, F12)
+*(Note: Finding F12 was originally discovered as residual finding F6 and renamed to F12 per finding numbering rules; original F6 denotes duplicate pytest runs addressed in Phase 1).*
 
 ---
 
@@ -117,7 +118,8 @@ os.environ["OPENAI_API_KEY"] = "sk-live-secret-key"
 
 ---
 
-### Finding F6 [HIGH — Windows] — WritePolicy Alias Bypass (Residual F4)
+### Finding F12 [HIGH — Windows] — WritePolicy Alias Bypass (Residual F4)
+*(Renamed from F6 to F12 per finding numbering rules to avoid collision with baseline F6).*
 
 - **CWE:** CWE-178 (Improper Handling of Case Sensitivity) / CWE-41 (Improper Resolution of Path Equivalence)
 - **Location:** `src/tools/scoped_tools.py:WritePolicy` & `make_scoped_write_file`
