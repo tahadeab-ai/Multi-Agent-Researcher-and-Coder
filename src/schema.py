@@ -1,8 +1,12 @@
 """Shared Pydantic data schemas and Agent State representation."""
 
+from __future__ import annotations
+
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field
+
+CURRENT_SCHEMA_VERSION = 1
 
 
 class PlanStep(BaseModel):
@@ -31,16 +35,22 @@ class TestResult(BaseModel):
     stdout: str = ""
     stderr: str = ""
     error_trace: str | None = None
+    exit_code: int = 0
 
 
 class AgentState(BaseModel):
     """Central state passed across nodes in the multi-agent graph."""
 
+    schema_version: int = CURRENT_SCHEMA_VERSION
     user_prompt: str
     plan: TaskPlan | None = None
+    plan_degraded: bool = False
     generated_files: list[str] = Field(default_factory=list)
     latest_test_result: TestResult | None = None
     healing_cycle: int = 0
     status: Literal["planning", "coding", "testing", "healing", "completed", "failed"] = "planning"
     history: list[dict[str, Any]] = Field(default_factory=list)
     run_dir: str | None = None
+    error: str | None = None
+    total_tokens: int = 0
+    total_cost_usd: float | None = 0.0

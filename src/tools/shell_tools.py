@@ -199,7 +199,7 @@ def run_pytest(test_path: str = "tests") -> str:
                 "error": f"Access denied: {e!s}",
             }
         )
-    except Exception as e:
+    except (subprocess.SubprocessError, OSError) as e:
         return json.dumps({"passed": False, "error": f"Execution failed: {e!s}"})
 
 
@@ -234,7 +234,7 @@ def execute_python(script_path: str) -> str:
         )
     except PermissionError as e:
         return json.dumps({"error": f"Access denied: {e!s}"})
-    except Exception as e:
+    except (subprocess.SubprocessError, OSError) as e:
         return json.dumps({"error": f"Failed to execute script: {e!s}"})
 
 

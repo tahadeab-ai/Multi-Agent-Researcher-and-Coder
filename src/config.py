@@ -49,6 +49,27 @@ class Settings(BaseSettings):
         le=300,
         description="Timeout in seconds for sandboxed subprocess execution",
     )
+    llm_timeout_seconds: float = Field(
+        default=60.0,
+        ge=1.0,
+        le=600.0,
+        description="Timeout in seconds for LLM provider API requests",
+    )
+    max_tokens_per_run: int | None = Field(
+        default=None,
+        ge=1,
+        description="Maximum total tokens allowed per run before BudgetExceededError",
+    )
+    max_cost_per_run_usd: float | None = Field(
+        default=None,
+        ge=0.0,
+        description="Maximum estimated USD cost allowed per run before BudgetExceededError",
+    )
+    tool_output_max_chars: int = Field(
+        default=8000,
+        ge=500,
+        description="Maximum character length of tool outputs before head+tail truncation",
+    )
     run_id: str = Field(
         default_factory=lambda: uuid.uuid4().hex[:12],
         description="Unique run identifier for workspace isolation",
@@ -91,12 +112,10 @@ class Settings(BaseSettings):
                 "LLM_PROVIDER is 'openai' but OPENAI_API_KEY is not set. "
                 "Set it in your .env file or as an environment variable."
             )
-        if self.llm_provider == "anthropic":
+        if self.llm_provider == "anthropic" and not self.anthropic_api_key:
             raise ConfigError(
-                "LLM_PROVIDER 'anthropic' is not yet implemented. "
-                "Use 'openai' or 'ollama' instead. "
-                "See https://github.com/tahadeab-ai/Multi-Agent-Researcher-and-Coder/issues "
-                "for updates on Anthropic support."
+                "LLM_PROVIDER is 'anthropic' but ANTHROPIC_API_KEY is not set. "
+                "Set it in your .env file or as an environment variable."
             )
 
 

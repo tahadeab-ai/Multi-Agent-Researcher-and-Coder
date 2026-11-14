@@ -1,6 +1,12 @@
 """Coder Agent responsible for writing and modifying Python implementation files."""
 
+from __future__ import annotations
+
+from typing import Any
+
 from src.agents.base import BaseAgent
+from src.llm.budget import BudgetTracker
+from src.llm.protocol import LLMProvider
 from src.tools.file_tools import (
     FILE_TOOL_SCHEMAS,
     list_directory,
@@ -23,7 +29,12 @@ Standards to follow:
 class CoderAgent(BaseAgent):
     """Coder Agent equipped with file manipulation tools."""
 
-    def __init__(self):
+    def __init__(
+        self,
+        provider: LLMProvider | None = None,
+        budget_tracker: BudgetTracker | None = None,
+        sleep_func: Any = None,
+    ) -> None:
         super().__init__(
             name="Coder",
             role_prompt=CODER_SYSTEM_PROMPT,
@@ -34,6 +45,9 @@ class CoderAgent(BaseAgent):
                 "list_directory": list_directory,
             },
             temperature=0.2,
+            provider=provider,
+            budget_tracker=budget_tracker,
+            sleep_func=sleep_func,
         )
 
     def write_code(self, task_instruction: str, context: str) -> str:

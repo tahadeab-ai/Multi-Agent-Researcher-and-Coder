@@ -11,8 +11,7 @@ from __future__ import annotations
 # When these rates were last verified and where.
 LAST_UPDATED: str = "2025-07-01"
 SOURCE: str = (
-    "https://openai.com/api/pricing (OpenAI) / "
-    "https://www.anthropic.com/pricing (Anthropic)"
+    "https://openai.com/api/pricing (OpenAI) / https://www.anthropic.com/pricing (Anthropic)"
 )
 
 # Cost per 1 million tokens: (input_usd_per_1M, output_usd_per_1M)

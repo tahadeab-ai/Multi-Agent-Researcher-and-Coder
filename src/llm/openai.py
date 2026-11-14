@@ -139,7 +139,7 @@ class OpenAIProvider:
     ) -> LLMResponse:
         kwargs = self._build_kwargs(messages, tools, temperature, response_format)
         if response_format is not None and self._capabilities.supports_json_schema:
-            resp = self._sync_client.beta.chat.completions.parse(**kwargs)
+            resp = self._sync_client.chat.completions.parse(**kwargs)
         else:
             resp = self._sync_client.chat.completions.create(**kwargs)
         return _normalize_response(resp, self._model)
@@ -153,7 +153,7 @@ class OpenAIProvider:
     ) -> LLMResponse:
         kwargs = self._build_kwargs(messages, tools, temperature, response_format)
         if response_format is not None and self._capabilities.supports_json_schema:
-            resp = await self._async_client.beta.chat.completions.parse(**kwargs)
+            resp = await self._async_client.chat.completions.parse(**kwargs)
         else:
             resp = await self._async_client.chat.completions.create(**kwargs)
         return _normalize_response(resp, self._model)
