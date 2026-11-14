@@ -15,14 +15,14 @@
 **Decision: Custom Provider Protocol (`src/llm/`) over LiteLLM.**
 
 The scope is exactly three providers: OpenAI-compatible, Anthropic, and Ollama.
-Adding LiteLLM for three providers would introduce ≥50 transitive dependencies,
-break mypy (heavy runtime monkeypatching, missing stubs), expose a large
-unreviewed attack surface, and add an external maintainer as a critical
-dependency. All three providers have official first-party Python SDKs.
+Adding LiteLLM for three providers would introduce dozens of transitive dependencies,
+break mypy (heavy runtime monkeypatching, missing stubs), expose an unnecessarily large
+unreviewed surface, and add an external abstraction layer when all three providers
+have official first-party Python SDKs.
 
 | Dimension | Custom Protocol | LiteLLM |
 |:---|:---|:---|
-| **Footprint** | Only existing `openai` + optional `anthropic`, `tenacity` | ≥50 transitive deps |
+| **Footprint** | Only existing `openai` + optional `anthropic`, `tenacity` | Dozens of transitive deps |
 | **Type safety** | Full mypy strict coverage via Protocol | Runtime dicts, missing stubs |
 | **Capability flags** | Explicit, deterministic per-model dataclass | Dynamic dict lookups, can be stale |
 | **Code surface we audit** | Exactly our HTTP/SDK calls | Unreviewed proxy + telemetry layers |
@@ -92,10 +92,11 @@ recorded sleep values follow exponential growth shape.
 ### 2.2 Structured Outputs (A2)
 
 **OpenAI path**: Use `client.chat.completions.parse(response_format=TaskPlan)`.
-The SDK handles strict JSON schema conversion internally. Requires `openai>=1.40.0`.
+The SDK handles strict JSON schema conversion internally. Requires `openai>=1.45.0` (GA parse availability).
 
-**Ollama path**: Probe JSON schema capability via a small test call at
-startup. Recent Ollama supports it; do not assume incapacity.
+**Ollama path**: Probe JSON-schema capability lazily on first structured-output use,
+and cache per (base_url, model). No eager startup network call (cost, offline mode,
+and offline socket guard forbid it).
 - **Degraded path** (probe fails or response fails to parse): one repair retry
   with explicit system correction message, then set
   `AgentState.plan_degraded = True` and emit a structured log at WARNING level.
@@ -126,7 +127,7 @@ startup. Recent Ollama supports it; do not assume incapacity.
 - `pytest-json-report` is an optional enhancement; core logic relies on exit
   code and stdout/stderr.
 
-### 2.5 Error Boundaries — BLE001 Strategy (A5)
+### 2.5 Error Boundaries — BLE001 Strategy (A5) & ToolError Semantics (N1)
 
 Narrow catches everywhere meaningful. The single exception is the
 **tool-dispatch trust boundary** in `BaseAgent._dispatch_tool()`:
@@ -137,6 +138,13 @@ except Exception as exc:  # noqa: BLE001 — boundary converts to structured Too
     logger.exception("tool_dispatch_error", tool=fn_name, exc=exc)
     raise ToolError(tool=fn_name, cause=exc) from exc
 ```
+**ToolError Semantics (N1):**
+The ReAct loop in `BaseAgent` catches `ToolError` at the dispatch call site and converts
+it into a structured error observation appended to messages (`role="tool"`), so the
+model can react, diagnose, and retry within `max_agent_steps`. `ToolError` NEVER terminates
+the run. Only infrastructure failures (provider exhaustion, budget, config) propagate
+to `AgentState.error`.
+
 Module-level `per-file-ignores` are removed file by file as T1.2 refactors
 each module. After T1.2 completes, only the `noqa: BLE001` annotation at the
 trust boundary remains — no module-level suppressions.
@@ -151,30 +159,22 @@ trust boundary remains — no module-level suppressions.
 > updated. The immutable `v0.1.1` tag was created under the old ID; a note
 > acknowledging this is added to CHANGELOG.
 
-### 2.7 Offline Test Guard (A8)
+### 2.7 Offline Test Guard (A8, N2)
 
-All unit tests that touch the provider layer run with socket access blocked:
-```python
-# conftest.py
-@pytest.fixture(autouse=True)
-def block_sockets(monkeypatch):
-    import socket
+All unit tests run with outbound network socket access blocked by default.
+To avoid breaking `asyncio`'s internal self-pipe (which relies on `socket.socketpair()`),
+the guard intercepts outbound connection attempts (`socket.socket.connect` and
+`socket.create_connection`) rather than constructor instantiation:
+- Local loopback connections (`127.0.0.1`, `::1`, `localhost`) and `socketpair` are allowed.
+- Non-loopback outbound connections raise `RuntimeError("Network access forbidden in unit tests")`.
+- Tests marked with `@pytest.mark.integration` skip the block.
 
-    monkeypatch.setattr(
-        socket,
-        "socket",
-        lambda *a, **k: (_ for _ in ()).throw(
-            RuntimeError("Network access forbidden in unit tests")
-        ),
-    )
-```
-Integration tests (live network calls) are tagged `@pytest.mark.integration`
-and excluded by default.
-
-**`pathlib.Path.match("**")` on 3.10–3.13**: The globstar `**` semantics in
-`Path.match()` changed between Python versions. This will be verified in CI
-and any scoped-tools pattern matching will use `fnmatch.fnmatchcase` instead
-to guarantee cross-version consistency.
+**`pathlib.Path.match("**")` vs `fnmatch` switch safety (N8)**:
+`fnmatch.fnmatchcase` allows `*` to cross `/` boundaries, whereas `PurePosixPath.match`
+treats segments strictly. Before altering pattern-matching logic, pin policy semantics
+with explicit regression tests covering nested paths, prefix-collision dirs (`tests_evil/`),
+and all F12 NTFS alias vectors across Python 3.10–3.13. Any switch must never loosen
+CODER deny or TESTER allow policies.
 
 ### 2.8 Async Write Serialization (A8)
 
@@ -377,9 +377,10 @@ Every task ends with **all gates green**: `pytest`, `ruff check .`, `mypy`.
 | 9 | Full artifacts in `run_dir/artifacts/`; truncated version in LLM context only |
 | 10 | CLI reports total tokens + USD cost (or `cost=N/A` for unknown models) |
 | 11 | All 4 matrix jobs (3.10–3.13): `pytest` ✅ · `ruff` ✅ · `mypy` ✅ |
-| 12 | Offline test guard blocks sockets in unit tests |
+| 12 | Offline test guard blocks outbound socket connections while allowing loopback/socketpair |
 | 13 | NTFS finding renamed F12; F6 = duplicate pytest; docs updated everywhere |
 | 14 | `.env.example` and `README.md` accurate; stale claims removed |
+| 15 | Code coverage ≥75% on new modules enforced in CI (--cov-fail-under=75) |
 
 ---
 
@@ -389,4 +390,4 @@ Every task ends with **all gates green**: `pytest`, `ruff check .`, `mypy`.
 |---|---|---|
 | D1 | v0.1.1 tag commit message referenced "NTFS alias bypass" as F6 | Immutable; note added to CHANGELOG acknowledging old ID |
 | D2 | OTel/Langfuse full integration deferred to Phase 4 | Minimal `Tracer` hook delivered in T1.5 |
-| D3 | Phase 1 scope is single-run-per-process | Documented constraint; multi-run parallelism deferred to Phase 3 |
+| D3 | Phase 1 scope is single-run-per-process | Documented constraint; multi-run parallelism deferred (unscheduled) |
