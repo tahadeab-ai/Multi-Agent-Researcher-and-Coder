@@ -133,7 +133,8 @@ def _run_sandboxed(
     }
 
     if is_windows:
-        popen_kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
+        create_new_pg = getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
+        popen_kwargs["creationflags"] = create_new_pg
     else:
         popen_kwargs["start_new_session"] = True
 
