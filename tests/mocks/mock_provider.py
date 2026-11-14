@@ -127,7 +127,7 @@ class MockProvider:
 
 # Confirm MockProvider satisfies the Protocol at import time.
 def _check_protocol() -> None:
-    _: LLMProvider = MockProvider()  # type: ignore[assignment]
+    _: LLMProvider = MockProvider()
 
 
 _check_protocol()

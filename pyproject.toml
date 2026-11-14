@@ -50,6 +50,10 @@ disallow_untyped_defs = true
 ignore_missing_imports = true
 explicit_package_bases = true
 
+[[tool.mypy.overrides]]
+module = "tests.*"
+disallow_untyped_defs = false
+
 [tool.ruff]
 target-version = "py310"
 line-length = 100
@@ -62,3 +66,8 @@ select = ["E", "F", "I", "UP", "B", "SIM"]
 "src/agents/coder.py" = ["E501"]
 "src/graph.py" = ["E501"]
 "src/main.py" = ["E501"]
+
+[dependency-groups]
+dev = [
+    "mypy>=2.4.1",
+]

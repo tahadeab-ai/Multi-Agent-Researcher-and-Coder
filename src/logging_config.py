@@ -52,4 +52,5 @@ def configure_logging(json_logs: bool = False) -> None:
 
 def get_logger(name: str) -> structlog.stdlib.BoundLogger:
     """Return a structlog logger bound to the given name."""
-    return structlog.get_logger(name)  # type: ignore[return-value]
+    logger: structlog.stdlib.BoundLogger = structlog.get_logger(name)
+    return logger

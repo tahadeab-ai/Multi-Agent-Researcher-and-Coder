@@ -3,7 +3,7 @@
 from src.schema import AgentState, PlanStep, TaskPlan, TestResult
 
 
-def test_agent_state_initialization():
+def test_agent_state_initialization() -> None:
     plan = TaskPlan(
         goal="Build an LRU cache",
         architecture_notes="Use OrderedDict or Doubly-Linked List",
@@ -28,6 +28,7 @@ def test_agent_state_initialization():
         status="coding",
     )
 
+    assert state.plan is not None
     assert state.plan.goal == "Build an LRU cache"
     assert len(state.plan.steps) == 2
     assert state.status == "coding"
@@ -41,7 +42,7 @@ def test_agent_state_initialization():
     assert state_with_dir.run_dir == "/path/to/sandbox/runs/abc123"
 
 
-def test_test_result_parsing():
+def test_test_result_parsing() -> None:
     result = TestResult(
         passed=True,
         summary="All 5 tests passed",

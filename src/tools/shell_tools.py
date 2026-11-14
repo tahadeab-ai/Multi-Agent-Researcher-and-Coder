@@ -72,7 +72,8 @@ def _terminate_process_tree(pid: int) -> None:
     if platform.system() != "Windows" and hasattr(os, "killpg") and hasattr(os, "getpgid"):
         sig = getattr(signal, "SIGKILL", getattr(signal, "SIGTERM", 9))
         with contextlib.suppress(ProcessLookupError, PermissionError, OSError):
-            os.killpg(os.getpgid(pid), sig)
+            getpgid_fn = getattr(os, "getpgid")  # noqa: B009
+            os.killpg(getpgid_fn(pid), sig)
 
     try:
         parent = psutil.Process(pid)

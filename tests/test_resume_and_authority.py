@@ -76,7 +76,7 @@ def test_mid_run_resume_skips_supervisor(
     # Monkeypatch _execute_pytest on graph to return passing TestResult
     from src.schema import TestResult
 
-    graph._execute_pytest = lambda ws: TestResult(  # type: ignore[method-assign]
+    graph._execute_pytest = lambda workspace: TestResult(  # type: ignore[method-assign]
         passed=True,
         summary="Pytest PASSED",
         stdout="1 passed",
@@ -106,14 +106,17 @@ def test_pytest_exit_code_5_maps_to_fail(tmp_path: Path) -> None:
     # Mock run_pytest returning exit code 5
     import src.graph as graph_mod
 
-    graph_mod.run_pytest = lambda path: json.dumps(
-        {
-            "passed": False,
-            "exit_code": 5,
-            "stdout": "collected 0 items",
-            "stderr": "",
-        }
-    )
+    def fake_run_pytest_fail(path: str) -> str:
+        return json.dumps(
+            {
+                "passed": False,
+                "exit_code": 5,
+                "stdout": "collected 0 items",
+                "stderr": "",
+            }
+        )
+
+    graph_mod.run_pytest = fake_run_pytest_fail  # type: ignore[assignment]
 
     result = graph._execute_pytest(tmp_path)
     assert not result.passed
@@ -126,14 +129,17 @@ def test_pytest_exit_code_0_maps_to_pass(tmp_path: Path) -> None:
     graph = MultiAgentGraph(provider=mock)
     import src.graph as graph_mod
 
-    graph_mod.run_pytest = lambda path: json.dumps(
-        {
-            "passed": True,
-            "exit_code": 0,
-            "stdout": "1 passed",
-            "stderr": "",
-        }
-    )
+    def fake_run_pytest_pass(path: str) -> str:
+        return json.dumps(
+            {
+                "passed": True,
+                "exit_code": 0,
+                "stdout": "1 passed",
+                "stderr": "",
+            }
+        )
+
+    graph_mod.run_pytest = fake_run_pytest_pass  # type: ignore[assignment]
 
     result = graph._execute_pytest(tmp_path)
     assert result.passed

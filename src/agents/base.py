@@ -75,7 +75,8 @@ class BaseAgent:
             )
 
         wrapped = retry_decorator(_do_call)
-        return wrapped()
+        res = wrapped()
+        return res  # type: ignore[return-value]
 
     async def _acall_provider_with_retry(
         self,
@@ -96,7 +97,7 @@ class BaseAgent:
             retry=retry_if_phoenix_retryable(),
             wait=WaitRetryAfterOrExponential(),
             stop=stop_after_attempt(5),
-            sleep=_async_sleep,  # type: ignore[arg-type]
+            sleep=_async_sleep,
             reraise=True,
         )
 

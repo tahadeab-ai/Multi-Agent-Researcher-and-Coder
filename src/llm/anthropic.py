@@ -15,7 +15,7 @@ from src.llm.protocol import LLMResponse, ModelCapabilities, TokenUsage, ToolCal
 
 def _require_anthropic() -> Any:
     try:
-        import anthropic  # type: ignore[import-untyped]
+        import anthropic
 
         return anthropic
     except ImportError as exc:
