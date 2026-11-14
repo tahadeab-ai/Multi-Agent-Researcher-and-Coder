@@ -6,6 +6,14 @@ from typing import Any
 
 from src.config import settings
 
+__all__ = [
+    "settings",
+    "read_file",
+    "write_file",
+    "list_directory",
+    "_resolve_safe_path",
+]
+
 
 def _resolve_safe_path(filepath: str) -> Path:
     """Ensures filepath remains safely confined within the workspace directory.
@@ -60,7 +68,7 @@ def read_file(filepath: str) -> str:
 
         content = path.read_text(encoding="utf-8")
         return json.dumps({"filepath": filepath, "content": content})
-    except Exception as e:
+    except (OSError, UnicodeDecodeError, PermissionError) as e:
         return json.dumps({"error": f"Failed to read file: {e!s}"})
 
 
@@ -77,7 +85,7 @@ def write_file(filepath: str, content: str) -> str:
                 "bytes_written": len(content.encode("utf-8")),
             }
         )
-    except Exception as e:
+    except (OSError, UnicodeEncodeError, PermissionError) as e:
         return json.dumps({"error": f"Failed to write file: {e!s}"})
 
 
@@ -100,7 +108,7 @@ def list_directory(dirpath: str = ".") -> str:
                 }
             )
         return json.dumps({"dirpath": dirpath, "entries": entries})
-    except Exception as e:
+    except (OSError, PermissionError) as e:
         return json.dumps({"error": f"Failed to list directory: {e!s}"})
 
 

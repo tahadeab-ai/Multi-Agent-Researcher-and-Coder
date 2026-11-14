@@ -52,9 +52,11 @@ flowchart TD
 ## ⚡ Key Engineering Features
 
 - **Framework-Agnostic & Lightweight:** Built cleanly on Pydantic v2 and the OpenAI-compatible standard. No bloated or brittle dependencies.
-- **Provider Flexibility:** Works out-of-the-box with **OpenAI** (`gpt-5.5`, `gpt-5.6`), **Anthropic**, or **100% local, free, offline models** via **Ollama** (`llama3`, `qwen2.5-coder`).
-- **Sandboxed File Operations:** Prevents path traversal vulnerabilities and confines agent writes strictly to the designated workspace.
-- **Automated Self-Correction:** Eliminates manual debugging for syntax errors, missing imports, and logic bugs.
+- **Provider Flexibility:** Works out-of-the-box with **OpenAI** (`gpt-4o-mini`, `gpt-4o`), **Anthropic** (`claude-3-5-sonnet`), or **100% local, free, offline models** via **Ollama** (`llama3`, `qwen2.5-coder`).
+- **Resilient Execution & Budgeting:** Automatic exponential backoff with jitter and `Retry-After` header support; strict token and cost caps with head+tail tool output truncation.
+- **Durable Persistence & Mid-Run Resume:** Atomic `state.json` checkpointing per run; resume any interrupted run seamlessly via `--resume <run_id>`.
+- **Role-Scoped Sandboxed Operations:** Role policies (CODER_POLICY / TESTER_POLICY) prevent reward hacking; hardened path confinement protects host filesystems.
+- **Authoritative Deterministic Verification:** Pytest execution is strictly controlled by the graph orchestration layer, never hallucinated by LLMs.
 
 ---
 
@@ -103,7 +105,15 @@ LLM_MODEL=gpt-4o-mini
 OPENAI_API_KEY=sk-...
 ```
 
-### Option B: 100% Local & Private (Ollama)
+### Option B: Cloud Frontier Models (Anthropic)
+```ini
+LLM_PROVIDER=anthropic
+LLM_MODEL=claude-3-5-sonnet-20241022
+ANTHROPIC_API_KEY=sk-ant-...
+```
+Install optional extra: `pip install -e ".[anthropic]"`
+
+### Option C: 100% Local & Private (Ollama)
 ```ini
 LLM_PROVIDER=ollama
 LLM_MODEL=llama3
@@ -118,6 +128,11 @@ Run the multi-agent system from the command line:
 
 ```bash
 python src/main.py "Build an in-memory thread-safe LRU Cache with TTL expiration and snapshots"
+```
+
+Resume an interrupted run:
+```bash
+python src/main.py --resume <run_id>
 ```
 
 Or run interactively:

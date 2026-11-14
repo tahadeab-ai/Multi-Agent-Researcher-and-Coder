@@ -22,11 +22,16 @@ class TestProviderValidation:
         with pytest.raises(ConfigError, match="OPENAI_API_KEY"):
             s.validate_provider()
 
-    def test_anthropic_not_implemented(self):
-        """Anthropic provider must raise ConfigError with 'not implemented'."""
-        s = Settings(llm_provider="anthropic")
-        with pytest.raises(ConfigError, match="not yet implemented"):
+    def test_anthropic_requires_api_key(self):
+        """Anthropic provider without API key must raise ConfigError."""
+        s = Settings(llm_provider="anthropic", anthropic_api_key=None)
+        with pytest.raises(ConfigError, match="ANTHROPIC_API_KEY"):
             s.validate_provider()
+
+    def test_anthropic_valid_with_key(self):
+        """Anthropic provider with key should not raise."""
+        s = Settings(llm_provider="anthropic", anthropic_api_key="sk-ant-test")
+        s.validate_provider()
 
     def test_ollama_valid_without_key(self):
         """Ollama provider should not require any API key."""

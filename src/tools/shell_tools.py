@@ -72,7 +72,8 @@ def _terminate_process_tree(pid: int) -> None:
     if platform.system() != "Windows" and hasattr(os, "killpg") and hasattr(os, "getpgid"):
         sig = getattr(signal, "SIGKILL", getattr(signal, "SIGTERM", 9))
         with contextlib.suppress(ProcessLookupError, PermissionError, OSError):
-            os.killpg(os.getpgid(pid), sig)
+            getpgid_fn = getattr(os, "getpgid")  # noqa: B009
+            os.killpg(getpgid_fn(pid), sig)
 
     try:
         parent = psutil.Process(pid)
@@ -132,7 +133,8 @@ def _run_sandboxed(
     }
 
     if is_windows:
-        popen_kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
+        create_new_pg = getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
+        popen_kwargs["creationflags"] = create_new_pg
     else:
         popen_kwargs["start_new_session"] = True
 
@@ -199,7 +201,7 @@ def run_pytest(test_path: str = "tests") -> str:
                 "error": f"Access denied: {e!s}",
             }
         )
-    except Exception as e:
+    except (subprocess.SubprocessError, OSError) as e:
         return json.dumps({"passed": False, "error": f"Execution failed: {e!s}"})
 
 
@@ -234,7 +236,7 @@ def execute_python(script_path: str) -> str:
         )
     except PermissionError as e:
         return json.dumps({"error": f"Access denied: {e!s}"})
-    except Exception as e:
+    except (subprocess.SubprocessError, OSError) as e:
         return json.dumps({"error": f"Failed to execute script: {e!s}"})
 
 
