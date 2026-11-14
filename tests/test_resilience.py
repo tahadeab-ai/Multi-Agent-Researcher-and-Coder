@@ -194,6 +194,71 @@ def test_tool_error_converted_to_observation_and_loop_continues() -> None:
     assert "Tool 'failing_tool' failed: Disk read failed" in tool_msg["content"]
 
 
+def test_tool_value_error_wrapped_and_run_completes() -> None:
+    """E3: Tool raising ValueError is wrapped into ToolError, converted to observation,
+    and run completes.
+    """
+
+    def value_error_tool() -> str:
+        raise ValueError("Invalid parameter value encountered")
+
+    mock = MockProvider()
+    mock.enqueue_response(tool_calls=[ToolCall(id="tc_val", name="val_tool", arguments="{}")])
+    mock.enqueue_response(content="Corrected after ValueError observation.")
+
+    agent = BaseAgent(
+        name="TestAgent",
+        role_prompt="test",
+        tools=[{"name": "val_tool"}],
+        tool_functions={"val_tool": value_error_tool},
+        provider=mock,
+    )
+
+    output = agent.run("execute val_tool")
+    assert output == "Corrected after ValueError observation."
+
+    call2_messages = mock.calls[1].messages
+    tool_msg = next((m for m in call2_messages if m.get("role") == "tool"), None)
+    assert tool_msg is not None
+    assert "Tool 'val_tool' failed: Invalid parameter value encountered" in tool_msg["content"]
+
+
+def test_real_openai_rate_limit_error_with_retry_after() -> None:
+    """E2: Injected real openai.RateLimitError with Retry-After header is honored by custom wait."""
+    from unittest.mock import MagicMock
+
+    import openai
+
+    mock_response = MagicMock()
+    mock_response.headers = {"retry-after": "7.5"}
+    mock_response.status_code = 429
+
+    real_rate_limit_err = openai.RateLimitError(
+        message="Rate limit exceeded",
+        response=mock_response,
+        body={"error": {"message": "Rate limit exceeded"}},
+    )
+
+    sleeps: list[float] = []
+    mock = MockProvider()
+    # First call raises real openai.RateLimitError with retry-after: 7.5
+    mock.enqueue_error(real_rate_limit_err)
+    # Second call succeeds
+    mock.enqueue_response(content="Recovered after real openai RateLimitError!")
+
+    agent = BaseAgent(
+        name="TestAgent",
+        role_prompt="test",
+        provider=mock,
+        sleep_func=lambda s: sleeps.append(s),
+    )
+
+    result = agent.run("test openai retry-after")
+    assert result == "Recovered after real openai RateLimitError!"
+    assert len(sleeps) == 1
+    assert sleeps[0] == pytest.approx(7.5)
+
+
 def test_max_steps_exceeded_raises() -> None:
     mock = MockProvider()
     # Enqueue tool calls continuously exceeding max_agent_steps

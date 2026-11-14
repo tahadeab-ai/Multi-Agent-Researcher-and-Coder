@@ -30,6 +30,10 @@ class ConfigError(PhoenixError):
     """
 
 
+# Canonical alias for ConfigError per ADR & design documentation
+ConfigurationError = ConfigError
+
+
 class ProviderError(PhoenixError):
     """Raised when an LLM provider call fails unrecoverably.
 

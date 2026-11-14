@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import random
 
 from tenacity import (
@@ -26,10 +27,48 @@ def is_retryable_exception(exc: BaseException) -> bool:
     - ProviderError with 4xx status_code except 429
     - Any other exception
     """
-    if isinstance(exc, _RETRYABLE_EXCEPTIONS):
+    if isinstance(exc, RateLimitError):
+        return True
+    if isinstance(exc, ProviderTimeoutError):
         return True
     if isinstance(exc, ProviderError) and exc.status_code is not None:
         return exc.status_code >= 500
+
+    # SDK direct exceptions translation / matching
+    # OpenAI: RateLimitError (429), APITimeoutError, APIConnectionError, InternalServerError (>=500)
+    try:
+        import openai
+
+        if isinstance(exc, openai.RateLimitError):
+            return True
+        if isinstance(exc, (openai.APITimeoutError, openai.APIConnectionError)):
+            return True
+        if isinstance(exc, openai.InternalServerError):
+            return True
+        if isinstance(exc, openai.APIStatusError) and exc.status_code >= 500:
+            return True
+        if isinstance(exc, openai.APIStatusError) and exc.status_code < 500:
+            return False
+    except ImportError:
+        pass
+
+    # Anthropic: RateLimitError (429), APITimeoutError, APIConnectionError, InternalServerError
+    try:
+        import anthropic
+
+        if isinstance(exc, anthropic.RateLimitError):
+            return True
+        if isinstance(exc, (anthropic.APITimeoutError, anthropic.APIConnectionError)):
+            return True
+        if isinstance(exc, anthropic.InternalServerError):
+            return True
+        if isinstance(exc, anthropic.APIStatusError) and exc.status_code >= 500:
+            return True
+        if isinstance(exc, anthropic.APIStatusError) and exc.status_code < 500:
+            return False
+    except ImportError:
+        pass
+
     return False
 
 
@@ -68,6 +107,18 @@ class WaitRetryAfterOrExponential:
             exc = retry_state.outcome.exception()
             if isinstance(exc, RateLimitError) and exc.retry_after is not None:
                 return min(exc.retry_after, self.max_wait)
+
+            # Extract Retry-After from SDK exceptions if present
+            if exc is not None:
+                retry_after = getattr(exc, "retry_after", None)
+                if retry_after is None and hasattr(exc, "response") and exc.response is not None:
+                    headers = getattr(exc.response, "headers", {})
+                    ra_header = headers.get("retry-after") or headers.get("Retry-After")
+                    if ra_header:
+                        with contextlib.suppress(ValueError):
+                            retry_after = float(ra_header)
+                if retry_after is not None:
+                    return min(float(retry_after), self.max_wait)
 
         # Standard exponential backoff + jitter
         attempt = retry_state.attempt_number
